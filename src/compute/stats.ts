@@ -122,13 +122,29 @@ export function zeros2d(rows: number, cols: number): number[][] {
 
 /**
  * Random number from standard normal distribution (Box-Muller).
+ *
+ * Box & Muller (1958): if u, v are independent uniform(0,1) samples, then
+ *   z0 = sqrt(-2 ln u) * cos(2π v)
+ *   z1 = sqrt(-2 ln u) * sin(2π v)
+ * are independent standard normals. We cache the spare z1 across calls so
+ * each call only consumes one new uniform sample on average.
  */
 export function randn(): number {
+  if (randnSpare !== null) {
+    const spare = randnSpare;
+    randnSpare = null;
+    return spare;
+  }
   let u = 0, v = 0;
   while (u === 0) u = Math.random();
   while (v === 0) v = Math.random();
-  return Math.sqrt(-2.0 * Math.log(u)) * 2.0 * Math.PI * v;
+  const radius = Math.sqrt(-2.0 * Math.log(u));
+  const angle = 2.0 * Math.PI * v;
+  randnSpare = radius * Math.sin(angle);
+  return radius * Math.cos(angle);
 }
+
+let randnSpare: number | null = null;
 
 /**
  * Column-wise means of a 2D array.
