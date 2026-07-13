@@ -103,6 +103,30 @@ describe('Stats Utilities', () => {
     }
   });
 
+  test('randn produces an approximately standard-normal distribution', () => {
+    // The previous version of this test only checked finiteness, which let
+    // a broken Box-Muller formula (missing cos/sin) slip through. A correct
+    // standard normal has mean ≈ 0, variance ≈ 1, and ~68% of mass in ±1σ.
+    const n = 20000;
+    const samples: number[] = new Array(n);
+    for (let i = 0; i < n; i++) samples[i] = randn();
+
+    let sum = 0;
+    for (const s of samples) sum += s;
+    const m = sum / n;
+
+    let sqSum = 0;
+    for (const s of samples) sqSum += (s - m) * (s - m);
+    const variance = sqSum / n;
+
+    let withinOneSigma = 0;
+    for (const s of samples) if (Math.abs(s) <= 1) withinOneSigma++;
+
+    expect(Math.abs(m)).toBeLessThan(0.05);        // ≈ 0
+    expect(Math.abs(variance - 1)).toBeLessThan(0.1); // ≈ 1
+    expect(Math.abs(withinOneSigma / n - 0.6827)).toBeLessThan(0.03); // ≈ 68.27%
+  });
+
   test('columnMeans of empty is empty', () => {
     expect(columnMeans([])).toEqual([]);
   });

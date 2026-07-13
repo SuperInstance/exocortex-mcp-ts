@@ -140,4 +140,19 @@ describe('REST API', () => {
     expect(data).toHaveProperty('class');
     expect(data).toHaveProperty('confidence');
   });
+
+  test('POST /predict before training returns a clean error, not a 500', async () => {
+    // The tool returns isError:true with a plain-text error message here
+    // (untrained algorithm), which is not JSON. Routes previously always
+    // tried JSON.parse on the tool result unconditionally, so this threw
+    // inside the handler and fell through to a generic 500 with a
+    // confusing "Unexpected token" message instead of a real error body.
+    const res = await makeRequest('POST', '/predict', {
+      algorithm: 'kmeans',
+      input: [1, 1],
+    });
+    expect(res.statusCode).toBe(400);
+    const data = JSON.parse(res.body);
+    expect(data.error).toMatch(/not.*train|train.*first/i);
+  });
 });

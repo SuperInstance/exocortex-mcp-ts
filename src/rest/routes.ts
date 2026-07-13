@@ -8,6 +8,7 @@ import { IncomingMessage, ServerResponse } from 'http';
 import { handleToolCall } from '../mcp/tools';
 import { toolDefinitions } from '../mcp/tools';
 import { DataPoint } from '../types';
+import { ToolResult } from '../mcp/protocol';
 
 /**
  * Parse JSON body from a request.
@@ -37,6 +38,20 @@ function sendJson(res: ServerResponse, statusCode: number, data: any): void {
     'Content-Length': Buffer.byteLength(body),
   });
   res.end(body);
+}
+
+/**
+ * Send a tool result as an HTTP response. If the tool reported an error
+ * (isError: true), its content is a plain error string, not JSON -- send
+ * it as a clean 400 instead of trying to JSON.parse it (which throws and
+ * previously fell through to a confusing generic 500).
+ */
+function sendToolResult(res: ServerResponse, result: ToolResult): void {
+  if (result.isError) {
+    sendJson(res, 400, { error: result.content[0]?.text ?? 'Tool error' });
+    return;
+  }
+  sendJson(res, 200, JSON.parse(result.content[0].text));
 }
 
 /**
@@ -93,7 +108,7 @@ export async function routeRequest(
           name: 'notebook_query',
           arguments: { question: body.question, topK: body.topK || 5 },
         });
-        sendJson(res, 200, JSON.parse(result.content[0].text));
+        sendToolResult(res, result);
         break;
       }
 
@@ -102,7 +117,7 @@ export async function routeRequest(
           name: 'notebook_embed',
           arguments: { texts: body.texts, dimensions: body.dimensions || 64 },
         });
-        sendJson(res, 200, JSON.parse(result.content[0].text));
+        sendToolResult(res, result);
         break;
       }
 
@@ -118,7 +133,7 @@ export async function routeRequest(
             k: body.k,
           },
         });
-        sendJson(res, 200, JSON.parse(result.content[0].text));
+        sendToolResult(res, result);
         break;
       }
 
@@ -127,7 +142,7 @@ export async function routeRequest(
           name: 'notebook_predict',
           arguments: { algorithm: body.algorithm, input: body.input },
         });
-        sendJson(res, 200, JSON.parse(result.content[0].text));
+        sendToolResult(res, result);
         break;
       }
 
@@ -136,7 +151,7 @@ export async function routeRequest(
           name: 'notebook_analyze',
           arguments: { data: body.data },
         });
-        sendJson(res, 200, JSON.parse(result.content[0].text));
+        sendToolResult(res, result);
         break;
       }
 
@@ -145,7 +160,7 @@ export async function routeRequest(
           name: 'notebook_cluster',
           arguments: { data: body.data, k: body.k, maxIterations: body.maxIterations },
         });
-        sendJson(res, 200, JSON.parse(result.content[0].text));
+        sendToolResult(res, result);
         break;
       }
 
@@ -154,7 +169,7 @@ export async function routeRequest(
           name: 'notebook_remember',
           arguments: { id: body.id, text: body.text, tags: body.tags, confidence: body.confidence },
         });
-        sendJson(res, 200, JSON.parse(result.content[0].text));
+        sendToolResult(res, result);
         break;
       }
 
@@ -163,7 +178,7 @@ export async function routeRequest(
           name: 'notebook_recall',
           arguments: { query: body.query, topK: body.topK },
         });
-        sendJson(res, 200, JSON.parse(result.content[0].text));
+        sendToolResult(res, result);
         break;
       }
 
